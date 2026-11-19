@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Antler Faith">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f7ff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Antler Faith</title>
+<style>html,body{margin:0;height:100%;background:#f4f7ff;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{font:15px system-ui;padding:24px}</style>
+</head><body>
+<iframe id="f" title="Antler Faith"></iframe>
+<script>
+// GANTI dengan URL web app Apps Script kamu (yang berakhiran /exec)
+var EXEC = "https://script.google.com/macros/s/AKfycbzM4oEhh6jWwABJGbkKJ4lkFN4Bsrt0j3q-LCV1eyBa5OzXdQmvW8ArE7cVFywoO6gxGA/exec";
+var f = document.getElementById("f"), t = "";
+try { t = localStorage.getItem("aft_tok") || ""; } catch (e) {}
+if (EXEC.indexOf("https://script.google.com/") !== 0) {
+  document.body.innerHTML = "<p>Isi variabel EXEC di index.html dengan URL web app (/exec).</p>";
+} else {
+  f.src = EXEC + (t ? "#" + t : "");
+}
+addEventListener("message", function (e) {
+  if (!/(\.googleusercontent\.com|\.google\.com)$/.test(new URL(e.origin).hostname)) return;
+  var d = e.data;
+  if (d && d.aft === "tok") {
+    try { d.v ? localStorage.setItem("aft_tok", d.v) : localStorage.removeItem("aft_tok"); } catch (x) {}
+  }
+});
+</script>
+</body></html>
