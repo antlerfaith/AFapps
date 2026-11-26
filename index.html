@@ -5,12 +5,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Antler Faith">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#f4f7ff">
+<meta name="theme-color" id="tc" content="#f6f8ff">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Antler Faith</title>
 <style>
-html,body{margin:0;height:100%;background:#f4f7ff;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{font:15px system-ui;padding:24px}
+html,body{margin:0;height:100%;background:#f6f8ff;overflow:hidden}
+@media (prefers-color-scheme:dark){html,body{background:#0a1230}}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{font:15px system-ui;padding:24px}
 #pb{position:fixed;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:5;background:#0c1a3d;color:#fff;border-radius:18px;padding:14px 16px;font:14px/1.4 system-ui,-apple-system,sans-serif;box-shadow:0 14px 40px rgba(3,20,70,.35);display:none}
 #pb b{display:block;font-size:15px;margin-bottom:4px}#pb div{display:flex;gap:8px;margin-top:12px}
 #dg{position:fixed;left:14px;right:14px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:6;background:#3a0d0d;color:#fff;border-radius:16px;padding:12px 14px;font:12.5px/1.45 ui-monospace,Menlo,monospace;box-shadow:0 14px 40px rgba(0,0,0,.4);display:none;white-space:pre-wrap;word-break:break-all}
@@ -28,6 +29,8 @@ var EXEC = "https://script.google.com/macros/s/AKfycbzM4oEhh6jWwABJGbkKJ4lkFN4Bs
 // 2) GANTI dengan App ID dari dashboard OneSignal (kosongkan untuk mematikan push)
 var ONESIGNAL_APP_ID = "2f2fbb15-740d-41f1-8bc5-38ea59dde4dc";
 
+function setTheme(m) { var c = m === "dark" ? "#0a1230" : "#f6f8ff"; document.documentElement.style.background = document.body.style.background = c; document.getElementById("tc").setAttribute("content", c); try { localStorage.setItem("aft_ui", m); } catch (e) {} }
+try { var _m = localStorage.getItem("aft_ui"); if (_m) setTheme(_m); else if (matchMedia("(prefers-color-scheme: dark)").matches) setTheme("dark"); } catch (e) {}
 var f = document.getElementById("f"), pb = document.getElementById("pb"), t = "", uid = "", src = null, OS = null;
 try { t = localStorage.getItem("aft_tok") || ""; } catch (e) {}
 if (EXEC.indexOf("https://script.google.com/") !== 0) {
@@ -125,6 +128,8 @@ addEventListener("message", function (e) {
       if (OS) { (uid ? OS.login(uid) : OS.logout()).catch(dlog); }
     }
     banner(); tell(); if (uid) setTimeout(check, 6000);
+  } else if (d.aft === "theme") {
+    setTheme(d.v);
   } else if (d.aft === "pushask") {
     src = e.source; banner(true); tell();
     if (status() !== "default") check(true);
