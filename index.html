@@ -68,11 +68,11 @@ function info() {
   if (ERR) x.error = ERR;
   return x;
 }
-function bad(x) { return pushOn && (!OS || !!ERR || !uid || x.izin !== "granted" || x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid); }
+function bad(x) { return pushOn && (!!ERR || (!!OS && !!uid && x.izin === "granted" && (x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid))); }
 function check(force) {
   swInfo();
   var x = info(), dg = document.getElementById("dg");
-  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3e\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
+  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3f\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
   else dg.style.display = "none";
 }
 document.getElementById("dgx").onclick = function () { document.getElementById("dg").style.display = "none"; };
