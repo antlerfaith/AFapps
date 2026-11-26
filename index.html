@@ -13,12 +13,15 @@
 html,body{margin:0;height:100%;background:#f4f7ff;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{font:15px system-ui;padding:24px}
 #pb{position:fixed;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:5;background:#0c1a3d;color:#fff;border-radius:18px;padding:14px 16px;font:14px/1.4 system-ui,-apple-system,sans-serif;box-shadow:0 14px 40px rgba(3,20,70,.35);display:none}
 #pb b{display:block;font-size:15px;margin-bottom:4px}#pb div{display:flex;gap:8px;margin-top:12px}
+#dg{position:fixed;left:14px;right:14px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:6;background:#3a0d0d;color:#fff;border-radius:16px;padding:12px 14px;font:12.5px/1.45 ui-monospace,Menlo,monospace;box-shadow:0 14px 40px rgba(0,0,0,.4);display:none;white-space:pre-wrap;word-break:break-all}
+#dg div{display:flex;gap:8px;margin-top:10px}#dg button{flex:1;border:0;border-radius:10px;padding:9px;font:600 13px system-ui}
 #pb button{flex:1;border:0;border-radius:12px;padding:11px;font:600 14px system-ui}#pa{background:linear-gradient(135deg,#0338a8,#4f8bff);color:#fff}#pn{background:rgba(255,255,255,.14);color:#fff}
 </style>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head><body>
 <iframe id="f" title="Antler Faith" allow="web-share; clipboard-write"></iframe>
 <div id="pb"><b>Aktifkan notifikasi HP</b><span id="pt">Undangan agenda dan pengumuman squad akan masuk walau aplikasi sedang tertutup.</span><div><button id="pn">Nanti</button><button id="pa">Aktifkan</button></div></div>
+<div id="dg"><span id="dgt"></span><div><button id="dgx" style="background:rgba(255,255,255,.15);color:#fff">Tutup</button><button id="dgr" style="background:#fff;color:#3a0d0d">Daftar ulang</button></div></div>
 <script>
 // 1) GANTI dengan URL web app Apps Script kamu (yang berakhiran /exec)
 var EXEC = "https://script.google.com/macros/s/AKfycbzM4oEhh6jWwABJGbkKJ4lkFN4Bsrt0j3q-LCV1eyBa5OzXdQmvW8ArE7cVFywoO6gxGA/exec";
@@ -45,22 +48,51 @@ function tell() { var s = status(); if (src && s) try { src.postMessage({ aft: "
 function snoozed() { try { return +localStorage.getItem("aft_push_snooze") > Date.now(); } catch (e) { return false; } }
 function banner(force) { pb.style.display = (uid && status() === "default" && (force || !snoozed())) ? "block" : "none"; }
 
+var ERR = "";
+function dlog(m) { ERR = String(m && (m.message || m) || m).slice(0, 220); }
+addEventListener("unhandledrejection", function (e) { dlog(e.reason); });
+function info() {
+  var x = { app: pushOn ? "ok" : "App ID kosong/salah", standalone: standalone, uid: uid || "(belum ada, aplikasi belum login/kirim nama)" };
+  if (OS) try {
+    x.izin = OS.Notifications.permissionNative; x.didukung = OS.Notifications.isPushSupported();
+    x.subId = OS.User.PushSubscription.id || "(kosong)"; x.optedIn = OS.User.PushSubscription.optedIn;
+    x.externalId = OS.User.externalId || "(kosong)";
+  } catch (e) { x.err2 = String(e); } else x.onesignal = "belum siap / gagal init";
+  if (ERR) x.error = ERR;
+  return x;
+}
+function bad(x) { return pushOn && (!OS || ERR || (x.izin === "granted" && (x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid))); }
+function check(force) {
+  var x = info(), dg = document.getElementById("dg");
+  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
+  else dg.style.display = "none";
+}
+document.getElementById("dgx").onclick = function () { document.getElementById("dg").style.display = "none"; };
+document.getElementById("dgr").onclick = async function () {
+  ERR = "";
+  try { if (OS) { if (OS.Notifications.permissionNative !== "granted") await OS.Notifications.requestPermission(); await OS.User.PushSubscription.optIn(); if (uid) await OS.login(uid); } } catch (e) { dlog(e); }
+  setTimeout(function () { check(true); tell(); }, 3000);
+};
 if (pushOn) {
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   OneSignalDeferred.push(async function (OneSignal) {
     var base = location.pathname.replace(/[^\/]*$/, ""); // mis. /antler-faith/ di GitHub Pages
-    await OneSignal.init({ appId: ONESIGNAL_APP_ID, serviceWorkerPath: base.slice(1) + "OneSignalSDKWorker.js", serviceWorkerParam: { scope: base }, notifyButton: { enable: false } });
+    try { await OneSignal.init({ appId: ONESIGNAL_APP_ID, serviceWorkerPath: base.slice(1) + "OneSignalSDKWorker.js", serviceWorkerParam: { scope: base }, notifyButton: { enable: false } }); }
+    catch (e) { dlog(e); setTimeout(check, 1500); return; }
     OS = OneSignal;
+    OneSignal.User.PushSubscription.addEventListener("change", function () { tell(); });
     OneSignal.Notifications.addEventListener("permissionChange", function () { banner(); tell(); });
-    if (uid) await OneSignal.login(uid);
+    try { if (uid) await OneSignal.login(uid); } catch (e) { dlog(e); }
     banner(); tell();
+    setTimeout(check, 6000);
   });
+  setTimeout(function () { if (!OS) { dlog(ERR || "OneSignal tidak termuat (cek Site URL di OneSignal)"); check(); } }, 12000);
 }
 document.getElementById("pa").onclick = async function () {
   pb.style.display = "none";
   if (!OS) return;
-  try { await OS.Notifications.requestPermission(); if (uid) await OS.login(uid); } catch (e) {}
-  tell();
+  try { await OS.Notifications.requestPermission(); if (uid) await OS.login(uid); } catch (e) { dlog(e); }
+  tell(); setTimeout(check, 5000);
 };
 document.getElementById("pn").onclick = function () {
   pb.style.display = "none";
@@ -77,11 +109,12 @@ addEventListener("message", function (e) {
     src = e.source;
     if (d.v !== uid) {
       uid = d.v || "";
-      if (OS) { if (uid) OS.login(uid); else OS.logout(); }
+      if (OS) { (uid ? OS.login(uid) : OS.logout()).catch(dlog); }
     }
-    banner(); tell();
+    banner(); tell(); if (uid) setTimeout(check, 6000);
   } else if (d.aft === "pushask") {
     src = e.source; banner(true); tell();
+    if (status() !== "default") check(true);
   }
 });
 </script>
