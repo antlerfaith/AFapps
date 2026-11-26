@@ -48,7 +48,11 @@ function tell() { var s = status(); if (src && s) try { src.postMessage({ aft: "
 function snoozed() { try { return +localStorage.getItem("aft_push_snooze") > Date.now(); } catch (e) { return false; } }
 function banner(force) { pb.style.display = (uid && status() === "default" && (force || !snoozed())) ? "block" : "none"; }
 
-var ERR = "";
+var ERR = "", ST = [], T0 = Date.now(), SW = "-";
+function stage(m) { ST.push(Math.round((Date.now() - T0) / 1000) + "s " + m); }
+addEventListener("error", function (e) { if (e && e.message) dlog("JS: " + e.message); }, true);
+function swInfo() { try { navigator.serviceWorker.getRegistrations().then(function (r) { SW = r.length ? r.map(function (x) { return x.scope.replace(location.origin, "") + " (" + (x.active ? "aktif" : x.installing ? "installing" : x.waiting ? "waiting" : "?") + ")"; }).join(", ") : "(tidak ada)"; }); } catch (e) { SW = "err " + e; } }
+swInfo();
 function dlog(m) { ERR = String(m && (m.message || m) || m).slice(0, 220); }
 setTimeout(function () { check(); }, 9000);
 addEventListener("unhandledrejection", function (e) { dlog(e.reason); });
@@ -59,27 +63,35 @@ function info() {
     x.subId = OS.User.PushSubscription.id || "(kosong)"; x.optedIn = OS.User.PushSubscription.optedIn;
     x.externalId = OS.User.externalId || "(kosong)";
   } catch (e) { x.err2 = String(e); } else x.onesignal = "belum siap / gagal init";
+  x.notifIOS = (typeof Notification !== "undefined") ? Notification.permission : "(tidak ada)";
+  x.sw = SW; x.sdk = typeof window.OneSignal === "undefined" ? "tidak termuat" : "termuat"; x.tahap = ST.join(" | ") || "-";
   if (ERR) x.error = ERR;
   return x;
 }
 function bad(x) { return pushOn && (!OS || !!ERR || !uid || x.izin !== "granted" || x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid); }
 function check(force) {
+  swInfo();
   var x = info(), dg = document.getElementById("dg");
-  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3d\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
+  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3e\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
   else dg.style.display = "none";
 }
 document.getElementById("dgx").onclick = function () { document.getElementById("dg").style.display = "none"; };
 document.getElementById("dgr").onclick = async function () {
+  if (!OS) { location.reload(); return; }
   ERR = "";
   try { if (OS) { if (OS.Notifications.permissionNative !== "granted") await OS.Notifications.requestPermission(); await OS.User.PushSubscription.optIn(); if (uid) await OS.login(uid); } } catch (e) { dlog(e); }
   setTimeout(function () { check(true); tell(); }, 3000);
 };
 if (pushOn) {
   window.OneSignalDeferred = window.OneSignalDeferred || [];
+  stage("mulai");
   OneSignalDeferred.push(async function (OneSignal) {
+    stage("sdk siap");
     var base = location.pathname.replace(/[^\/]*$/, ""); // mis. /antler-faith/ di GitHub Pages
+    stage("init…");
     try { await OneSignal.init({ appId: ONESIGNAL_APP_ID, serviceWorkerPath: base.slice(1) + "OneSignalSDKWorker.js", serviceWorkerParam: { scope: base }, notifyButton: { enable: false } }); }
-    catch (e) { dlog(e); setTimeout(check, 1500); return; }
+    catch (e) { stage("init gagal"); dlog(e); setTimeout(check, 1500); return; }
+    stage("init ok");
     OS = OneSignal; if (/tidak termuat/.test(ERR)) ERR = "";
     OneSignal.User.PushSubscription.addEventListener("change", function () { tell(); });
     OneSignal.Notifications.addEventListener("permissionChange", function () { banner(); tell(); });
