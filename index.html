@@ -65,7 +65,7 @@ function info() {
 function bad(x) { return pushOn && (!OS || !!ERR || !uid || x.izin !== "granted" || x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid); }
 function check(force) {
   var x = info(), dg = document.getElementById("dg");
-  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3c\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
+  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3d\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
   else dg.style.display = "none";
 }
 document.getElementById("dgx").onclick = function () { document.getElementById("dg").style.display = "none"; };
@@ -80,14 +80,14 @@ if (pushOn) {
     var base = location.pathname.replace(/[^\/]*$/, ""); // mis. /antler-faith/ di GitHub Pages
     try { await OneSignal.init({ appId: ONESIGNAL_APP_ID, serviceWorkerPath: base.slice(1) + "OneSignalSDKWorker.js", serviceWorkerParam: { scope: base }, notifyButton: { enable: false } }); }
     catch (e) { dlog(e); setTimeout(check, 1500); return; }
-    OS = OneSignal;
+    OS = OneSignal; if (/tidak termuat/.test(ERR)) ERR = "";
     OneSignal.User.PushSubscription.addEventListener("change", function () { tell(); });
     OneSignal.Notifications.addEventListener("permissionChange", function () { banner(); tell(); });
     try { if (uid) await OneSignal.login(uid); } catch (e) { dlog(e); }
     banner(); tell();
     setTimeout(check, 6000);
   });
-  setTimeout(function () { if (!OS) { dlog(ERR || "OneSignal tidak termuat (cek Site URL di OneSignal)"); check(); } }, 12000);
+  setTimeout(function () { if (!OS) { dlog(ERR || "OneSignal tidak termuat (cek Site URL di OneSignal)"); check(); } }, 25000);
 }
 document.getElementById("pa").onclick = async function () {
   pb.style.display = "none";
