@@ -50,6 +50,7 @@ function banner(force) { pb.style.display = (uid && status() === "default" && (f
 
 var ERR = "";
 function dlog(m) { ERR = String(m && (m.message || m) || m).slice(0, 220); }
+setTimeout(function () { check(); }, 9000);
 addEventListener("unhandledrejection", function (e) { dlog(e.reason); });
 function info() {
   var x = { app: pushOn ? "ok" : "App ID kosong/salah", standalone: standalone, uid: uid || "(belum ada, aplikasi belum login/kirim nama)" };
@@ -61,10 +62,10 @@ function info() {
   if (ERR) x.error = ERR;
   return x;
 }
-function bad(x) { return pushOn && (!OS || ERR || (x.izin === "granted" && (x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid))); }
+function bad(x) { return pushOn && (!OS || !!ERR || !uid || x.izin !== "granted" || x.subId === "(kosong)" || !x.optedIn || x.externalId !== uid); }
 function check(force) {
   var x = info(), dg = document.getElementById("dg");
-  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
+  if (force || bad(x)) { document.getElementById("dgt").textContent = "Diagnosa notifikasi HP · wrapper 1.3c\n" + Object.keys(x).map(function (k) { return k + ": " + x[k]; }).join("\n"); dg.style.display = "block"; }
   else dg.style.display = "none";
 }
 document.getElementById("dgx").onclick = function () { document.getElementById("dg").style.display = "none"; };
