@@ -9,24 +9,79 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Antler Faith</title>
-<style>html,body{margin:0;height:100%;background:#f4f7ff;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{font:15px system-ui;padding:24px}</style>
+<style>
+html,body{margin:0;height:100%;background:#f4f7ff;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}p{font:15px system-ui;padding:24px}
+#pb{position:fixed;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:5;background:#0c1a3d;color:#fff;border-radius:18px;padding:14px 16px;font:14px/1.4 system-ui,-apple-system,sans-serif;box-shadow:0 14px 40px rgba(3,20,70,.35);display:none}
+#pb b{display:block;font-size:15px;margin-bottom:4px}#pb div{display:flex;gap:8px;margin-top:12px}
+#pb button{flex:1;border:0;border-radius:12px;padding:11px;font:600 14px system-ui}#pa{background:linear-gradient(135deg,#0338a8,#4f8bff);color:#fff}#pn{background:rgba(255,255,255,.14);color:#fff}
+</style>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head><body>
-<iframe id="f" title="Antler Faith"></iframe>
+<iframe id="f" title="Antler Faith" allow="web-share; clipboard-write"></iframe>
+<div id="pb"><b>Aktifkan notifikasi HP</b><span id="pt">Undangan agenda dan pengumuman squad akan masuk walau aplikasi sedang tertutup.</span><div><button id="pn">Nanti</button><button id="pa">Aktifkan</button></div></div>
 <script>
-// GANTI dengan URL web app Apps Script kamu (yang berakhiran /exec)
+// 1) GANTI dengan URL web app Apps Script kamu (yang berakhiran /exec)
 var EXEC = "https://script.google.com/macros/s/AKfycbzM4oEhh6jWwABJGbkKJ4lkFN4Bsrt0j3q-LCV1eyBa5OzXdQmvW8ArE7cVFywoO6gxGA/exec";
-var f = document.getElementById("f"), t = "";
+// 2) GANTI dengan App ID dari dashboard OneSignal (kosongkan untuk mematikan push)
+var ONESIGNAL_APP_ID = "2f2fbb15-740d-41f1-8bc5-38ea59dde4dc";
+
+var f = document.getElementById("f"), pb = document.getElementById("pb"), t = "", uid = "", src = null, OS = null;
 try { t = localStorage.getItem("aft_tok") || ""; } catch (e) {}
 if (EXEC.indexOf("https://script.google.com/") !== 0) {
   document.body.innerHTML = "<p>Isi variabel EXEC di index.html dengan URL web app (/exec).</p>";
 } else {
   f.src = EXEC + (t ? "#" + t : "");
 }
+var pushOn = /^[0-9a-f-]{36}$/i.test(ONESIGNAL_APP_ID);
+var ios = /iP(hone|ad|od)/.test(navigator.userAgent), standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+
+function status() {
+  if (!pushOn) return "off";
+  if (!OS) return ios && !standalone ? "unsupported" : null;
+  if (!OS.Notifications.isPushSupported()) return "unsupported";
+  return OS.Notifications.permissionNative || (OS.Notifications.permission ? "granted" : "default");
+}
+function tell() { var s = status(); if (src && s) try { src.postMessage({ aft: "pushst", v: s }, "*"); } catch (e) {} }
+function snoozed() { try { return +localStorage.getItem("aft_push_snooze") > Date.now(); } catch (e) { return false; } }
+function banner(force) { pb.style.display = (uid && status() === "default" && (force || !snoozed())) ? "block" : "none"; }
+
+if (pushOn) {
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function (OneSignal) {
+    var base = location.pathname.replace(/[^\/]*$/, ""); // mis. /antler-faith/ di GitHub Pages
+    await OneSignal.init({ appId: ONESIGNAL_APP_ID, serviceWorkerPath: base.slice(1) + "OneSignalSDKWorker.js", serviceWorkerParam: { scope: base }, notifyButton: { enable: false } });
+    OS = OneSignal;
+    OneSignal.Notifications.addEventListener("permissionChange", function () { banner(); tell(); });
+    if (uid) await OneSignal.login(uid);
+    banner(); tell();
+  });
+}
+document.getElementById("pa").onclick = async function () {
+  pb.style.display = "none";
+  if (!OS) return;
+  try { await OS.Notifications.requestPermission(); if (uid) await OS.login(uid); } catch (e) {}
+  tell();
+};
+document.getElementById("pn").onclick = function () {
+  pb.style.display = "none";
+  try { localStorage.setItem("aft_push_snooze", Date.now() + 3 * 864e5); } catch (e) {}
+};
+
 addEventListener("message", function (e) {
   if (!/(\.googleusercontent\.com|\.google\.com)$/.test(new URL(e.origin).hostname)) return;
   var d = e.data;
-  if (d && d.aft === "tok") {
+  if (!d) return;
+  if (d.aft === "tok") {
     try { d.v ? localStorage.setItem("aft_tok", d.v) : localStorage.removeItem("aft_tok"); } catch (x) {}
+  } else if (d.aft === "uid") {
+    src = e.source;
+    if (d.v !== uid) {
+      uid = d.v || "";
+      if (OS) { if (uid) OS.login(uid); else OS.logout(); }
+    }
+    banner(); tell();
+  } else if (d.aft === "pushask") {
+    src = e.source; banner(true); tell();
   }
 });
 </script>
